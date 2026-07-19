@@ -178,10 +178,8 @@ private func policyPrecheck(references: [RuleReference]) -> Rule {
     #expect(report.errors.contains { $0.contains("requires a URL") })
 }
 
-@Test func seedRulebookCitationPolicyHasOnlyMaintainerURLHandoffs() throws {
+@Test func seedRulebookPassesCitationPolicy() throws {
     let report = CitationPolicy.lint(try RulebookLoader.loadSeed())
-
     #expect(report.warnings.isEmpty)
-    #expect(report.errors.count == 2)
-    #expect(report.errors.allSatisfy { $0.contains("reference URL is a placeholder") })
+    #expect(report.errors.isEmpty)
 }
