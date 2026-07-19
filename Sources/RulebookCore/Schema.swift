@@ -37,6 +37,39 @@ public struct Rulebook: Sendable, Equatable {
 
 // MARK: - Rules
 
+/// Provenance for a claim made by a rule.
+public struct RuleReference: Codable, Sendable, Equatable {
+    /// An open string-backed reference kind. Unknown values are preserved so
+    /// older clients can continue decoding rulebooks with newer metadata.
+    public struct Kind: RawRepresentable, Codable, Sendable, Equatable {
+        public let rawValue: String
+
+        public init(rawValue: String) {
+            self.rawValue = rawValue
+        }
+
+        public static let runtimeSource = Kind(rawValue: "runtime-source")
+        public static let runtimeBehavior = Kind(rawValue: "runtime-behavior")
+        public static let issue = Kind(rawValue: "issue")
+        public static let releaseNote = Kind(rawValue: "release-note")
+        public static let documentation = Kind(rawValue: "documentation")
+        public static let observed = Kind(rawValue: "observed")
+    }
+
+    public let type: Kind
+    public let title: String
+    public let url: String?
+    public let runtimeVersions: [String]?
+
+    public init(type: Kind, title: String, url: String? = nil,
+                runtimeVersions: [String]? = nil) {
+        self.type = type
+        self.title = title
+        self.url = url
+        self.runtimeVersions = runtimeVersions
+    }
+}
+
 public enum Rule: Sendable, Equatable {
     case precheck(PrecheckRule)
     case noise(NoiseRule)
@@ -67,6 +100,7 @@ public enum Rule: Sendable, Equatable {
 public struct PrecheckRule: Sendable, Equatable, Codable {
     public let id: String
     public let criteria: MatchCriteria
+    public let references: [RuleReference]
     /// Fact line emitted into the digest, e.g.
     /// "TERMINATION: SIGTERM escalated to SIGKILL within stop grace period".
     /// Plain text authored in the rulebook; never interpolated with log content.
@@ -76,11 +110,25 @@ public struct PrecheckRule: Sendable, Equatable, Codable {
     public let suppressesCategories: [String]
 
     public init(id: String, criteria: MatchCriteria, emitsFact: String,
-                suppressesCategories: [String] = []) {
+                suppressesCategories: [String] = [], references: [RuleReference] = []) {
         self.id = id
         self.criteria = criteria
         self.emitsFact = emitsFact
         self.suppressesCategories = suppressesCategories
+        self.references = references
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, criteria, references, emitsFact, suppressesCategories
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(String.self, forKey: .id)
+        self.criteria = try c.decode(MatchCriteria.self, forKey: .criteria)
+        self.references = try c.decodeReferences(forKey: .references)
+        self.emitsFact = try c.decode(String.self, forKey: .emitsFact)
+        self.suppressesCategories = try c.decode([String].self, forKey: .suppressesCategories)
     }
 }
 
@@ -89,13 +137,28 @@ public struct PrecheckRule: Sendable, Equatable, Codable {
 public struct NoiseRule: Sendable, Equatable, Codable {
     public let id: String
     public let criteria: MatchCriteria
+    public let references: [RuleReference]
     /// Regex applied per log line (anchored search, not full match).
     public let linePattern: String
 
-    public init(id: String, criteria: MatchCriteria, linePattern: String) {
+    public init(id: String, criteria: MatchCriteria, linePattern: String,
+                references: [RuleReference] = []) {
         self.id = id
         self.criteria = criteria
         self.linePattern = linePattern
+        self.references = references
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, criteria, references, linePattern
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(String.self, forKey: .id)
+        self.criteria = try c.decode(MatchCriteria.self, forKey: .criteria)
+        self.references = try c.decodeReferences(forKey: .references)
+        self.linePattern = try c.decode(String.self, forKey: .linePattern)
     }
 }
 
@@ -105,15 +168,31 @@ public struct NoiseRule: Sendable, Equatable, Codable {
 public struct PromptRule: Sendable, Equatable, Codable {
     public let id: String
     public let criteria: MatchCriteria
+    public let references: [RuleReference]
     public let text: String
     /// Lower value = higher priority. Ties broken by id (stable ordering).
     public let priority: Int
 
-    public init(id: String, criteria: MatchCriteria, text: String, priority: Int = 100) {
+    public init(id: String, criteria: MatchCriteria, text: String, priority: Int = 100,
+                references: [RuleReference] = []) {
         self.id = id
         self.criteria = criteria
         self.text = text
         self.priority = priority
+        self.references = references
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, criteria, references, text, priority
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(String.self, forKey: .id)
+        self.criteria = try c.decode(MatchCriteria.self, forKey: .criteria)
+        self.references = try c.decodeReferences(forKey: .references)
+        self.text = try c.decode(String.self, forKey: .text)
+        self.priority = try c.decode(Int.self, forKey: .priority)
     }
 }
 
@@ -123,16 +202,31 @@ public struct PromptRule: Sendable, Equatable, Codable {
 public struct ValidatorRule: Sendable, Equatable, Codable {
     public let id: String
     public let criteria: MatchCriteria
+    public let references: [RuleReference]
     public let category: String
     /// Regexes; at least one must have matched somewhere in the log window.
     public let requiredEvidence: [String]
 
     public init(id: String, criteria: MatchCriteria, category: String,
-                requiredEvidence: [String]) {
+                requiredEvidence: [String], references: [RuleReference] = []) {
         self.id = id
         self.criteria = criteria
         self.category = category
         self.requiredEvidence = requiredEvidence
+        self.references = references
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, criteria, references, category, requiredEvidence
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(String.self, forKey: .id)
+        self.criteria = try c.decode(MatchCriteria.self, forKey: .criteria)
+        self.references = try c.decodeReferences(forKey: .references)
+        self.category = try c.decode(String.self, forKey: .category)
+        self.requiredEvidence = try c.decode([String].self, forKey: .requiredEvidence)
     }
 }
 
@@ -172,5 +266,12 @@ public struct MatchContext: Sendable {
         self.exitCode = exitCode
         self.source = source
         self.logLines = logLines
+    }
+}
+
+private extension KeyedDecodingContainer {
+    func decodeReferences(forKey key: Key) throws -> [RuleReference] {
+        guard contains(key) else { return [] }
+        return try decode([RuleReference].self, forKey: key)
     }
 }
