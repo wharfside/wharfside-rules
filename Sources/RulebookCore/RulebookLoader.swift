@@ -13,6 +13,14 @@ import Foundation
 /// verification is not optional on the download path.
 public enum RulebookLoader {
 
+    /// Loads the seed rulebook shipped as a package resource.
+    public static func loadSeed() throws -> Rulebook {
+        guard let url = Bundle.module.url(forResource: "Rulebook", withExtension: "json") else {
+            throw RulebookError.malformedDocument
+        }
+        return try loadBundled(Data(contentsOf: url))
+    }
+
     /// Bundled rulebooks are covered by the app's code signature and
     /// notarization; no separate signature needed.
     public static func loadBundled(_ data: Data) throws -> Rulebook {

@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "version": "0.1.0",
+  "minAppVersion": "0.1.1",
+  "rules": [
+    {
+      "kind": "precheck",
+      "id": "precheck.stop-escalation",
+      "criteria": {
+        "exitCodes": [137],
+        "logPatterns": [
+          "sending signal 15 to process",
+          "sending signal 9 to process",
+          "status: 137 managed process exit"
+        ]
+      },
+      "emitsFact": "TERMINATION: container stopped via SIGTERM then SIGKILL (orderly stop, exit 137)",
+      "suppressesCategories": ["outOfMemory", "crash"],
+      "conclusionCategory": "stopped",
+      "conclusionSummary": "Container stopped via SIGTERM/SIGKILL (orderly stop); boot log shows signal 15 → grace period → signal 9 → exit 137.",
+      "references": [
+        {
+          "type": "runtime-behavior",
+          "title": "The runtime stop sequence sends SIGTERM, waits for the stop timeout, then sends SIGKILL",
+          "url": "TODO(maintainer-url)"
+        },
+        {
+          "type": "runtime-behavior",
+          "title": "containerWait exit status is available only during the stopping window",
+          "url": "TODO(maintainer-url)",
+          "runtimeVersions": ["1.0.0"]
+        }
+      ]
+    },
+    {
+      "kind": "precheck",
+      "id": "precheck.no-evidence",
+      "criteria": {
+        "sources": ["bootLogOnly"],
+        "maxErrorCount": 0,
+        "excludesLogPatterns": ["sending signal 15 to process"],
+        "excludesExitCodes": [0]
+      },
+      "emitsFact": "EVIDENCE: container exited without writing any application output",
+      "suppressesCategories": [],
+      "conclusionCategory": "unknown",
+      "conclusionSummary": "The container exited{exit_status} without writing any application output — there is nothing in the logs to analyze. If this exit is unexpected, check whether the command writes errors to stdout/stderr.",
+      "conclusionConfidence": "low",
+      "conclusionActions": [
+        "Run `container logs {container}` to confirm no output was produced",
+        "If unexpected, run the container's command manually to see its error output"
+      ],
+      "references": [
+        {
+          "type": "observed",
+          "title": "A boot-log-only container exit with no application errors or orderly-stop signal can leave no application output to analyze"
+        }
+      ]
+    },
+    {
+      "kind": "noise",
+      "id": "noise.vminitd-memory-threshold",
+      "criteria": {},
+      "linePattern": "vminitd memory threshold exceeded",
+      "references": [
+        {
+          "type": "observed",
+          "title": "vminitd memory threshold exceeded fires on every VM boot regardless of the container exit outcome"
+        }
+      ]
+    }
+  ]
+}

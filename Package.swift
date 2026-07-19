@@ -17,11 +17,13 @@ let package = Package(
         .target(
             name: "RulebookCore",
             dependencies: [.product(name: "Crypto", package: "swift-crypto")],
+            resources: [.process("Resources")],
             swiftSettings: [.enableUpcomingFeature("StrictConcurrency")]
         ),
         .testTarget(
             name: "RulebookCoreTests",
-            dependencies: ["RulebookCore"]
+            dependencies: ["RulebookCore"],
+            resources: [.copy("Fixtures")]
         ),
     ]
 )

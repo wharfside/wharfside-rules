@@ -80,3 +80,11 @@ in plain CI runners.
 
 Pre-1.0. Schema version 1. Expect the schema to evolve while the seed
 rulebook is being written; semver discipline begins at `1.0.0`.
+
+## Built with Codex
+
+The rule-reference feature was implemented with OpenAI Codex (GPT-5.6 Sol). It adds open,
+string-backed citation kinds that preserve unknown future values, legacy-safe
+decoding for rulebooks without `references`, and an authoring-time citation
+policy exercised by `swift test`. References remain inert metadata and do not
+participate in rule matching, selection, or evaluation.
