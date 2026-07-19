@@ -37,6 +37,39 @@ public struct Rulebook: Sendable, Equatable {
 
 // MARK: - Rules
 
+/// Provenance for a claim made by a rule.
+public struct RuleReference: Codable, Sendable, Equatable {
+    /// An open string-backed reference kind. Unknown values are preserved so
+    /// older clients can continue decoding rulebooks with newer metadata.
+    public struct Kind: RawRepresentable, Codable, Sendable, Equatable {
+        public let rawValue: String
+
+        public init(rawValue: String) {
+            self.rawValue = rawValue
+        }
+
+        public static let runtimeSource = Kind(rawValue: "runtime-source")
+        public static let runtimeBehavior = Kind(rawValue: "runtime-behavior")
+        public static let issue = Kind(rawValue: "issue")
+        public static let releaseNote = Kind(rawValue: "release-note")
+        public static let documentation = Kind(rawValue: "documentation")
+        public static let observed = Kind(rawValue: "observed")
+    }
+
+    public let type: Kind
+    public let title: String
+    public let url: String?
+    public let runtimeVersions: [String]?
+
+    public init(type: Kind, title: String, url: String? = nil,
+                runtimeVersions: [String]? = nil) {
+        self.type = type
+        self.title = title
+        self.url = url
+        self.runtimeVersions = runtimeVersions
+    }
+}
+
 public enum Rule: Sendable, Equatable {
     case precheck(PrecheckRule)
     case noise(NoiseRule)
